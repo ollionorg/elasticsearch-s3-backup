@@ -1,0 +1,36 @@
+[aws_api_keys]
+# Enter your actual, working AWS API keys here:
+aws_access_key = AKIAXXXXYYYYZZZZ
+aws_secret_key = OIAAAAABBBBBCCCCCDDDDDEEEE
+
+
+[aws_s3_config]
+aws_region = us-east-1
+s3_bucket_name = my-s3-bucket
+
+# s3 'path' inside the bucket for ES snapshots:
+s3_base_path = elasticsearch-backups
+
+
+[elasticsearch_config]
+es_repository_name = s3-elasticsearch-snapshot
+
+# SOURCE nodes: BACKUP from here
+es_src_seed1 = 10.40.11.180:9200
+
+# if your ES source is a cluster instead of a single node,
+# then uncomment the following lines and set the correct IP addresses:
+#es_src_seed2 = a.b.c.d:9200
+#es_src_seed3 = w.x.y.z:9200
+
+
+# DESTINATION nodes: RESTORE to here
+es_dest_seed1 = 10.40.101.198:9200
+es_dest_seed2 = 10.40.101.224:9200
+es_dest_seed3 = 10.40.101.55:9200
+
+# comma-separated names of source indices to backup
+index_names = employee,project
+
+# name of ES snapshot to create in S3
+snapshot_name = snapshot_test_1
