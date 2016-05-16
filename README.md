@@ -6,7 +6,7 @@ Backups are stored as [ES snapshots](https://www.elastic.co/guide/en/elasticsear
 
 The utility uses Elasticsearch's in-built [Snapshot and Restore API](https://www.elastic.co/guide/en/elasticsearch/reference/current/modules-snapshots.html). The standard [Elasticsearch AWS Cloud Plugin](https://www.elastic.co/guide/en/elasticsearch/plugins/current/cloud-aws.html) permits use of an S3 bucket for the ES snapshot repository.
 
-## Benefits of Using S3 for ES snapshots
+## Why Use S3 for Elasticsearch Snapshots
 
 S3 works great as an ES snapshot/backup store:
 * Durable backups: S3 has [high durability and availability](https://aws.amazon.com/s3/faqs/) which is important for backups in general.
