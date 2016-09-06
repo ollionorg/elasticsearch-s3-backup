@@ -25,7 +25,7 @@ All snapshots are kept in a pre-specified S3 bucket. The `es-s3-snapshot` utilit
 
 The utility depends on `Python 2.7` and the standard [Elasticsearch Python client library](https://Elasticsearch-py.readthedocs.org/en/master/). 
 
-It also requires the Elasticsearch [AWS Cloud Plugin](https://www.elastic.co/guide/en/elasticsearch/plugins/current/cloud-aws.html) to be installed on every node of both source and target ES clusters.
+It also requires the Elasticsearch [AWS Cloud Plugin](https://www.elastic.co/guide/en/elasticsearch/plugins/current/cloud-aws.html) to be installed on **every node of both source and target ES clusters**, otherwise you will [see errors like this](https://discuss.elastic.co/t/unknown-repository-type-s3-when-creating-snapshot-in-2-x/35697/7).
 
 The `es-s3-snapshot` utility has been tested on these platforms:
 * Amazon Linux
