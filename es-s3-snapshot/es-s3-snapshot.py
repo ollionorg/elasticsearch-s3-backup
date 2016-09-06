@@ -54,7 +54,7 @@ def snapshot_indices_from_src_to_s3(config):
                     "secret_key": config['aws_api_keys']['aws_secret_key']
                 }
             },
-            timeout=30,
+            request_timeout=30,
             verify=False)
 
         print "\n[INFO] Snapshotting ES indices: '%s' to S3...\n" %(config['elasticsearch_config']['index_names'])
@@ -109,7 +109,7 @@ def restore_indices_from_s3_to_dest(config):
                     "secret_key": config['aws_api_keys']['aws_secret_key']
                 }
             },
-            timeout=30,
+            request_timeout=30,
             verify=False)
 
         # must close indices before restoring:
