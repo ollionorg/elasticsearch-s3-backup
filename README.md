@@ -149,6 +149,15 @@ snapshot_name = snapshot_test_1
 ### Backup Mode: Take an S3 Snapshot of ES Indices 
 First ensure that you have entered valid values in the `es-s3-snapshot.conf` file. This is critical. See the previous section for details.
 
+### Snapshotting can be done safely on a running cluster
+From the [official ES docs on snapshot+restore](https://www.elastic.co/guide/en/elasticsearch/reference/current/modules-snapshots.html):
+
+> The index snapshot process is incremental. In the process of making the index snapshot Elasticsearch analyses the list of the index files that are already stored in the repository and copies only files that were created or changed since the last snapshot. That allows multiple snapshots to be preserved in the repository in a compact form. **Snapshotting process is executed in non-blocking fashion**. All indexing and searching operation can continue to be executed against the index that is being snapshotted. However, a snapshot represents the point-in-time view of the index at the moment when snapshot was created, so no records that were added to the index after the snapshot process was started will be present in the snapshot. The snapshot process starts immediately for the primary shards that has been started and are not relocating at the moment. Elasticsearch waits for relocation or initialization of shards to complete before snapshotting them.
+
+> Besides creating a copy of each index the snapshot process can also store global cluster metadata, which includes persistent cluster settings and templates. The transient settings and registered snapshot repositories are not stored as part of the snapshot.
+
+> Only one snapshot process can be executed in the cluster at any time. While snapshot of a particular shard is being created this shard cannot be moved to another node, which can interfere with rebalancing process and allocation filtering. Elasticsearch will only be able to move a shard to another node (according to the current allocation filtering settings and rebalancing algorithm) once the snapshot is finished.
+
 Once you have a correct `es-s3-snapshot.conf` file, simply run the utility in `backup` mode on a source ES node like this:
 
 ```sh
