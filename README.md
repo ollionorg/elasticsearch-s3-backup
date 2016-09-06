@@ -23,7 +23,7 @@ All snapshots are kept in a pre-specified S3 bucket. The `es-s3-snapshot` utilit
 
 ## Prerequisites and Setup
 
-The utility depends on `Python 2.7` and the standard [Elasticsearch Python client library](https://Elasticsearch-py.readthedocs.org/en/master/). 
+The utility depends on `Python 2.7` and the standard [Elasticsearch Python client library](https://Elasticsearch-py.readthedocs.org/en/master/).
 
 It also requires the Elasticsearch [AWS Cloud Plugin](https://www.elastic.co/guide/en/elasticsearch/plugins/current/cloud-aws.html) to be installed on **every node of both source and target ES clusters**, otherwise you will [see errors like this](https://discuss.elastic.co/t/unknown-repository-type-s3-when-creating-snapshot-in-2-x/35697/7).
 
@@ -46,7 +46,7 @@ For more details, see the [AWS Cloud Plugin](https://www.elastic.co/guide/en/ela
 
 ### Install Python 2.7 and pip
 
-Both Python2.7 and `pip` (the Python package manager) are required to install the Elasticsearch Python client library which is needed to run the `es-s3-snapshot` utility. 
+Both Python2.7 and `pip` (the Python package manager) are required to install the Elasticsearch Python client library which is needed to run the `es-s3-snapshot` utility.
 
 These dependencies have to be installed on one node in your source ES cluster and one node in your destination ES cluster.
 
@@ -99,13 +99,36 @@ You run it in `backup` mode on the source (`src` in the conf file) ES cluster wh
 You run it in `restore` mode on the target (`dest` in the conf file) ES cluster where you want to restore the previously-snapshotted ES indices.
 
 
+### IAM Policy
+Since the tool only has to write to a specific S3 bucket, it only needs permissions to that bucket, for example:
+
+```
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Action": [
+                "s3:*"
+            ],
+            "Effect": "Allow",
+            "Resource": [
+                "arn:aws:s3:::YOUR_BUCKET_NAME",
+                "arn:aws:s3:::YOUR_BUCKET_NAME/*"
+            ]
+        }
+    ]
+}
+```
+
+You can create an IAM user, attach the above IAM policy to this user and use the corresponding ACCESS and SECRET keys in the configuration below.
+
 
 ### Configuration Details
-The `es-s3-snapshot.conf` file contains all the required runtime parameters for the utility. 
+The `es-s3-snapshot.conf` file contains all the required runtime parameters for the utility.
 
 Before running the `es-s3-snapshot` utility, ensure that you have entered valid values in the `es-s3-snapshot.conf` file. This is a critical and mandatory step.
 
-For example, without setting the correct value of your AWS ACCESS and SECRET keys in the configuration file, the `es-s3-snapshot` utility will simply not work. 
+For example, without setting the correct value of your AWS ACCESS and SECRET keys in the configuration file, the `es-s3-snapshot` utility will simply not work.
 
 Please refer to `es-s3-snapshot.conf.SAMPLE` which contains representative values and comments that make the config self-explanatory:
 
@@ -146,6 +169,8 @@ index_names = my_index1,my_index2,my_index_3
 snapshot_name = snapshot_test_1
 ```
 
+
+
 ## Backup Mode
 
 ### Backup can be "safely" run on a running cluster
@@ -157,16 +182,24 @@ From the [official ES docs on snapshot+restore](https://www.elastic.co/guide/en/
 
 > Only one snapshot process can be executed in the cluster at any time. While snapshot of a particular shard is being created this shard cannot be moved to another node, which can interfere with rebalancing process and allocation filtering. Elasticsearch will only be able to move a shard to another node (according to the current allocation filtering settings and rebalancing algorithm) once the snapshot is finished.
 
-### Take an S3 Snapshot of ES Indices 
+### Take an S3 Snapshot of ES Indices
 First ensure that you have entered valid values in the `es-s3-snapshot.conf` file. This is critical. See the previous section for details.
 
-Once you have a correct `es-s3-snapshot.conf` file, simply run the utility in `backup` mode on a source ES node like this:
+Once you have a correct `es-s3-snapshot.conf` file, simply run the utility in `backup` mode on a source ES node (or any other machine which can see port 9200 on a source ES node) like this:
 
 ```sh
 python es-s3-snapshot.py -m backup
 ```
 
-The backup operation can be performed on any node of the source cluster. 
+The backup operation can be performed on any node of the source cluster.
+
+If all runs properly, you should see something like this in `/var/log/elasticsearch/elasticsearch.log`:
+
+```
+[2016-01-06 17:13:10,980][INFO ][repositories             ] [Lazarus] put repository [elasticsearch-snapshots]
+[2016-01-06 17:17:39,558][INFO ][snapshots                ] [Lazarus] snapshot [elasticsearch-snapshots:before-migration-to-es-service] is done
+```
+We've seen speeds of around 1GB-per-min for backup to S3 within the same region.
 
 
 ## Restore Mode
