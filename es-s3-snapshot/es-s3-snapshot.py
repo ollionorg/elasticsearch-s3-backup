@@ -1,13 +1,15 @@
 #!/usr/bin/env python
 
-from elasticsearch import Elasticsearch
+from elasticsearch import Elasticsearch, RequestsHttpConnection
 from elasticsearch.exceptions import NotFoundError
 from time import strftime
+from requests_aws4auth import AWS4Auth
 import ConfigParser
 import argparse
 
 # Note: You MUST at least enter valid AWS API Keys in this file:
 CONFIG_FILE = 'es-s3-snapshot.conf'
+
 
 # Usage/Setup:
 # 1. Put your AWS creds in the CONFIG_FILE file located in the same subdirectory as this file
@@ -15,20 +17,22 @@ CONFIG_FILE = 'es-s3-snapshot.conf'
 #
 # 2. Review the other config params in the CONFIG_FILE.
 # The default params should be okay in most cases, but take a look to be sure.
+#
+# Read the README.md !
 
 
-def snapshot_indices_from_src_to_s3(config):
+def snapshot_indices_from_src_to_s3(config, awsauth):
     """
     Take a snapshot of all the indices specified in the config file.
 
     The specified indices are backed up from the ElasticSearch Node on which backup is initiated
     and are stored at the S3 location specified in the config file.
-    
+
     Parameters:
-        config: dictionary storing the configuration details 
-        
+        config: dictionary storing the configuration details
+
     """
-    
+
     src_seed1 = config['elasticsearch_config']['es_src_seed1']
     es_s3_repo = config['elasticsearch_config']['es_repository_name']
 
@@ -40,8 +44,9 @@ def snapshot_indices_from_src_to_s3(config):
         src_seed2 = src_seed3 = src_seed1
 
     try:
-        src_es = Elasticsearch([src_seed1, src_seed2, src_seed3], sniff_on_start=True, 
-            sniff_on_connection_fail=True, sniffer_timeout=60)
+        src_es = Elasticsearch([src_seed1, src_seed2, src_seed3], port=443, http_auth=awsauth, use_ssl=True, verify_certs=True, connection_class=RequestsHttpConnection)
+
+        print "\n[INFO] ES client info: %s" %(src_es.info())
 
         src_es.snapshot.create_repository(repository=es_s3_repo,
             body={
@@ -59,9 +64,9 @@ def snapshot_indices_from_src_to_s3(config):
 
         print "\n[INFO] Snapshotting ES indices: '%s' to S3...\n" %(config['elasticsearch_config']['index_names'])
 
-        src_es.snapshot.create(repository=es_s3_repo, 
-            snapshot=config['elasticsearch_config']['snapshot_name'], 
-            body={"indices": config['elasticsearch_config']['index_names']}, 
+        src_es.snapshot.create(repository=es_s3_repo,
+            snapshot=config['elasticsearch_config']['snapshot_name'],
+            body={"indices": config['elasticsearch_config']['index_names']},
             wait_for_completion=False)
 
     except Exception, e:
@@ -69,18 +74,18 @@ def snapshot_indices_from_src_to_s3(config):
 
 
 
-def restore_indices_from_s3_to_dest(config):
+def restore_indices_from_s3_to_dest(config, awsauth):
     """
     Restore the specified indices from the snapshot specified in the config file.
 
     The indices are restored at the specified 'dest' ElasticSearch Node.
-    ElasticSearch automatically replicates the indices across the ES cluster after the restore. 
-    
+    ElasticSearch automatically replicates the indices across the ES cluster after the restore.
+
     Parameters:
         config: dictionary storing the configuration details
-        
+
     """
-    
+
     dest_seed1 = config['elasticsearch_config']['es_dest_seed1']
     es_s3_repo = config['elasticsearch_config']['es_repository_name']
     index_list = config['elasticsearch_config']['index_names'].split(',')
@@ -95,8 +100,10 @@ def restore_indices_from_s3_to_dest(config):
 
     try:
         # specify all 3 dest ES nodes in the connection string
-        dest_es = Elasticsearch([dest_seed1, dest_seed2, dest_seed3], sniff_on_start=True, 
-            sniff_on_connection_fail=True, sniffer_timeout=60)
+
+        dest_es = Elasticsearch([dest_seed1, dest_seed2, dest_seed3], port=443, http_auth=awsauth, use_ssl=True, verify_certs=True, connection_class=RequestsHttpConnection)
+
+        print "\n[INFO] ES client info: %s" %(dest_es.info())
 
         dest_es.snapshot.create_repository(repository=es_s3_repo,
             body={
@@ -125,9 +132,9 @@ def restore_indices_from_s3_to_dest(config):
 
         print "\n[INFO] Restoring ES indices: '%s' from S3 snapshot...\n" %(config['elasticsearch_config']['index_names'])
 
-        dest_es.snapshot.restore(repository=es_s3_repo, 
-            snapshot=config['elasticsearch_config']['snapshot_name'], 
-            body={"indices": config['elasticsearch_config']['index_names']}, 
+        dest_es.snapshot.restore(repository=es_s3_repo,
+            snapshot=config['elasticsearch_config']['snapshot_name'],
+            body={"indices": config['elasticsearch_config']['index_names']},
             wait_for_completion=False)
 
     except Exception, e:
@@ -140,20 +147,20 @@ def restore_indices_from_s3_to_dest(config):
 
 def reopen_indices(es, index_list):
     """
-    Re-open indices 
+    Re-open indices
     (used to ensure indices are re-opened after any restore operation)
-    
+
     Parameters:
         es         : ElasticSearch connection object
         index_list : List of ElasticSearch indices that needs to be open
-    """        
+    """
 
     try:
         for index in index_list:
-            print "[INFO] reopen_indices(): Opening index: '%s'" %(index) 
+            print "[INFO] reopen_indices(): Opening index: '%s'" %(index)
             es.indices.open(index=index, ignore_unavailable=True)
     except NotFoundError:
-                print "\n\n[WARN] Could not reopen missing index on Target ES cluster: '%s'" %(index)    
+                print "\n\n[WARN] Could not reopen missing index on Target ES cluster: '%s'" %(index)
     except Exception, e:
         print "\n\n[ERROR] Unexpected error in reopen_indices(): %s" %(str(e))
 
@@ -161,9 +168,9 @@ def reopen_indices(es, index_list):
 
 def read_config():
     """
-    Parse the config file. Return a dictionary object containing the config. 
+    Parse the config file. Return a dictionary object containing the config.
     """
-    
+
     cfg = ConfigParser.ConfigParser()
     cfg.read(CONFIG_FILE)
 
@@ -180,9 +187,9 @@ def main():
         description='Push specified Elasticsearch indices from SOURCE to DESTINATION as per config in the `es-s3-snapshot.conf` file.')
 
     requiredNamed = parser.add_argument_group('required named arguments')
-    requiredNamed.add_argument('-m', '--mode', 
+    requiredNamed.add_argument('-m', '--mode',
         help="Mode of operation. Choose 'backup' on your SOURCE cluster. \
-            Choose 'restore' on your DESTINATION cluster", 
+            Choose 'restore' on your DESTINATION cluster",
         choices=['backup','restore'], required=True)
 
     args = parser.parse_args()
@@ -190,16 +197,19 @@ def main():
     # parse config
     config = read_config()
 
+    # get signed request credentials object for AWS
+    awsauth = AWS4Auth(config['aws_api_keys']['aws_access_key'], config['aws_api_keys']['aws_secret_key'], config['aws_s3_config']['aws_region'], 'es')
+
     # set default value of snapshot_name if missing from config
     if not 'snapshot_name' in config['elasticsearch_config']:
         snapshot_name = 'snapshot-' + strftime("%Y_%m_%dT%H-%M-%S")
         config['elasticsearch_config']['snapshot_name'] = snapshot_name
 
-    if args.mode == 'backup': 
-        snapshot_indices_from_src_to_s3(config)
+    if args.mode == 'backup':
+        snapshot_indices_from_src_to_s3(config, awsauth)
 
-    if args.mode == 'restore': 
-        restore_indices_from_s3_to_dest(config)
+    if args.mode == 'restore':
+        restore_indices_from_s3_to_dest(config, awsauth)
 
     print '\n\n[All done!]'
 
