@@ -6,6 +6,7 @@ from time import strftime
 from requests_aws4auth import AWS4Auth
 import ConfigParser
 import argparse
+from elasticsearch import TransportError
 
 # Note: You MUST at least enter valid AWS API Keys in this file:
 CONFIG_FILE = 'es-s3-snapshot.conf'
@@ -18,7 +19,7 @@ CONFIG_FILE = 'es-s3-snapshot.conf'
 # 2. Review the other config params in the CONFIG_FILE.
 # The default params should be okay in most cases, but take a look to be sure.
 #
-# Read the README.md !
+# For more detailed instructions, read the README.md !
 
 
 def snapshot_indices_from_src_to_s3(config, awsauth):
@@ -30,11 +31,11 @@ def snapshot_indices_from_src_to_s3(config, awsauth):
 
     Parameters:
         config: dictionary storing the configuration details
-
+        awsauth: the IAM Role creds to sign all ES HTTP requests
     """
 
     src_seed1 = config['elasticsearch_config']['es_src_seed1']
-    es_s3_repo = config['elasticsearch_config']['es_repository_name']
+    es_repo_name = config['elasticsearch_config']['es_repository_name']
 
     try:
         src_seed2 = config['elasticsearch_config']['es_src_seed2']
@@ -48,7 +49,8 @@ def snapshot_indices_from_src_to_s3(config, awsauth):
 
         print "\n[INFO] ES client info: %s" %(src_es.info())
 
-        src_es.snapshot.create_repository(repository=es_s3_repo,
+        src_es.snapshot.create_repository(
+            repository=es_repo_name,
             body={
                 "type": "s3",
                 "settings": {
@@ -56,7 +58,8 @@ def snapshot_indices_from_src_to_s3(config, awsauth):
                     "bucket": config['aws_s3_config']['s3_bucket_name'],
                     "base_path": config['aws_s3_config']['s3_base_path'],
                     "access_key": config['aws_api_keys']['aws_access_key'],
-                    "secret_key": config['aws_api_keys']['aws_secret_key']
+                    "secret_key": config['aws_api_keys']['aws_secret_key'],
+                    "role_arn" : config['aws_s3_config']['role_arn']
                 }
             },
             request_timeout=30,
@@ -64,10 +67,15 @@ def snapshot_indices_from_src_to_s3(config, awsauth):
 
         print "\n[INFO] Snapshotting ES indices: '%s' to S3...\n" %(config['elasticsearch_config']['index_names'])
 
-        src_es.snapshot.create(repository=es_s3_repo,
-            snapshot=config['elasticsearch_config']['snapshot_name'],
-            body={"indices": config['elasticsearch_config']['index_names']},
-            wait_for_completion=False)
+        try:
+            src_es.snapshot.create(repository=es_repo_name,
+                snapshot=config['elasticsearch_config']['snapshot_name'],
+                body={"indices": config['elasticsearch_config']['index_names']},
+                wait_for_completion=False)
+        except TransportError as e:
+            print "[ERROR] " + e.error
+            print "[ERROR] " + e.status_code
+            print "[ERROR] " + e.info
 
     except Exception, e:
         print "\n\n[ERROR] Unexpected error: %s" %(str(e))
@@ -83,11 +91,11 @@ def restore_indices_from_s3_to_dest(config, awsauth):
 
     Parameters:
         config: dictionary storing the configuration details
-
+        awsauth: the IAM Role creds to sign all ES HTTP requests
     """
 
     dest_seed1 = config['elasticsearch_config']['es_dest_seed1']
-    es_s3_repo = config['elasticsearch_config']['es_repository_name']
+    es_repo_name = config['elasticsearch_config']['es_repository_name']
     index_list = config['elasticsearch_config']['index_names'].split(',')
 
     try:
@@ -105,7 +113,9 @@ def restore_indices_from_s3_to_dest(config, awsauth):
 
         print "\n[INFO] ES client info: %s" %(dest_es.info())
 
-        dest_es.snapshot.create_repository(repository=es_s3_repo,
+        # Full ES S3 "settings": https://www.elastic.co/guide/en/elasticsearch/plugins/current/cloud-aws-repository.html
+        dest_es.snapshot.create_repository(
+            repository=es_repo_name,
             body={
                 "type": "s3",
                 "settings": {
@@ -113,35 +123,29 @@ def restore_indices_from_s3_to_dest(config, awsauth):
                     "bucket": config['aws_s3_config']['s3_bucket_name'],
                     "base_path": config['aws_s3_config']['s3_base_path'],
                     "access_key": config['aws_api_keys']['aws_access_key'],
-                    "secret_key": config['aws_api_keys']['aws_secret_key']
+                    "secret_key": config['aws_api_keys']['aws_secret_key'],
+                    "role_arn" : config['aws_s3_config']['role_arn']
                 }
             },
             request_timeout=30,
             verify=False)
 
-        # must close indices before restoring:
-        for index in index_list:
-            try:
-                print "[INFO] Closing index: '%s'" %(index)
-                dest_es.indices.close(index=index, ignore_unavailable=True)
-            except NotFoundError:
-                print "\n\n[WARN] Index '%s' not present on Target ES cluster - could not close it." %(index)
-            except Exception, e:
-                print "\n\n[ERROR] Unexpected error '%s' while trying to close index: '%s'" %(str(e))
-                #reopen_indices(dest_es, index_list)
+        # '_close' is NOT allowed by Amazon Elasticsearch Service - don't need to _close before restore
 
         print "\n[INFO] Restoring ES indices: '%s' from S3 snapshot...\n" %(config['elasticsearch_config']['index_names'])
 
-        dest_es.snapshot.restore(repository=es_s3_repo,
-            snapshot=config['elasticsearch_config']['snapshot_name'],
-            body={"indices": config['elasticsearch_config']['index_names']},
-            wait_for_completion=False)
+        try:
+            dest_es.snapshot.restore(repository=es_repo_name,
+                snapshot=config['elasticsearch_config']['snapshot_name'],
+                body={"indices": config['elasticsearch_config']['index_names']},
+                wait_for_completion=False)
+        except TransportError as e:
+            print "[ERROR] " + e.error
+            print "[ERROR] " + e.status_code
+            print "[ERROR] " + e.info
 
     except Exception, e:
         print "\n\n[ERROR] Unexpected error: %s" %(str(e))
-    finally:
-        print "\n[INFO] (finally) Re-opening indices: '%s'" %(str(index_list))
-        reopen_indices(dest_es, index_list)
 
 
 
@@ -170,7 +174,6 @@ def read_config():
     """
     Parse the config file. Return a dictionary object containing the config.
     """
-
     cfg = ConfigParser.ConfigParser()
     cfg.read(CONFIG_FILE)
 

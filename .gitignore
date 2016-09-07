@@ -6,6 +6,10 @@ bin/
 tmp/
 *.exe
 
+
+# scratchpad
+scratchpad/
+
 # salt retry files
 salt-install.retry
 

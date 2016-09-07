@@ -4,12 +4,18 @@ aws_access_key = AKIAXXXXYYYYZZZZ
 aws_secret_key = OIAAAAABBBBBCCCCCDDDDDEEEE
 
 
+
 [aws_s3_config]
 aws_region = us-east-1
 s3_bucket_name = my-s3-bucket
 
 # s3 'path' inside the bucket for ES snapshots:
 s3_base_path = elasticsearch-backups
+
+# IAM Role for signing the ES HTTP requests
+# see http://docs.aws.amazon.com/elasticsearch-service/latest/developerguide/es-managedomains.html#es-managedomains-snapshots
+role_arn = arn:aws:iam::112233445566:role/es-s3-snapshot-role
+
 
 
 [elasticsearch_config]
@@ -23,14 +29,13 @@ es_src_seed1 = 10.40.11.180:9200
 #es_src_seed2 = a.b.c.d:9200
 #es_src_seed3 = w.x.y.z:9200
 
-
 # DESTINATION nodes: RESTORE to here
 es_dest_seed1 = 10.40.101.198:9200
 es_dest_seed2 = 10.40.101.224:9200
 es_dest_seed3 = 10.40.101.55:9200
 
 # comma-separated names of source indices to backup
-index_names = employee,project
+index_names = employee,project,payroll
 
 # name of ES snapshot to create in S3
 snapshot_name = snapshot_test_1
