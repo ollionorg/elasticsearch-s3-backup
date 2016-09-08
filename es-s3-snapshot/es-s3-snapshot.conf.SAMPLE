@@ -4,12 +4,20 @@ aws_access_key = AKIAXXXXYYYYZZZZ
 aws_secret_key = OIAAAAABBBBBCCCCCDDDDDEEEE
 
 
+
+[elastic_cloud]
+shield_auth_username = 'admin'
+shield_auth_password = '0e90e90e90e90e90e9'
+
+
+
 [aws_s3_config]
 aws_region = us-east-1
 s3_bucket_name = my-s3-bucket
 
 # s3 'path' inside the bucket for ES snapshots:
 s3_base_path = elasticsearch-backups
+
 
 
 [elasticsearch_config]

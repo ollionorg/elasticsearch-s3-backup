@@ -23,12 +23,12 @@ def snapshot_indices_from_src_to_s3(config):
 
     The specified indices are backed up from the ElasticSearch Node on which backup is initiated
     and are stored at the S3 location specified in the config file.
-    
+
     Parameters:
-        config: dictionary storing the configuration details 
-        
+        config: dictionary storing the configuration details
+
     """
-    
+
     src_seed1 = config['elasticsearch_config']['es_src_seed1']
     es_s3_repo = config['elasticsearch_config']['es_repository_name']
 
@@ -40,8 +40,8 @@ def snapshot_indices_from_src_to_s3(config):
         src_seed2 = src_seed3 = src_seed1
 
     try:
-        src_es = Elasticsearch([src_seed1, src_seed2, src_seed3], sniff_on_start=True, 
-            sniff_on_connection_fail=True, sniffer_timeout=60)
+        src_es = Elasticsearch([src_seed1, src_seed2, src_seed3],
+            http_auth=(config['elastic_cloud']['shield_auth_username'], config['elastic_cloud']['shield_auth_password']))
 
         src_es.snapshot.create_repository(repository=es_s3_repo,
             body={
@@ -59,9 +59,9 @@ def snapshot_indices_from_src_to_s3(config):
 
         print "\n[INFO] Snapshotting ES indices: '%s' to S3...\n" %(config['elasticsearch_config']['index_names'])
 
-        src_es.snapshot.create(repository=es_s3_repo, 
-            snapshot=config['elasticsearch_config']['snapshot_name'], 
-            body={"indices": config['elasticsearch_config']['index_names']}, 
+        src_es.snapshot.create(repository=es_s3_repo,
+            snapshot=config['elasticsearch_config']['snapshot_name'],
+            body={"indices": config['elasticsearch_config']['index_names']},
             wait_for_completion=False)
 
     except Exception, e:
@@ -74,13 +74,13 @@ def restore_indices_from_s3_to_dest(config):
     Restore the specified indices from the snapshot specified in the config file.
 
     The indices are restored at the specified 'dest' ElasticSearch Node.
-    ElasticSearch automatically replicates the indices across the ES cluster after the restore. 
-    
+    ElasticSearch automatically replicates the indices across the ES cluster after the restore.
+
     Parameters:
         config: dictionary storing the configuration details
-        
+
     """
-    
+
     dest_seed1 = config['elasticsearch_config']['es_dest_seed1']
     es_s3_repo = config['elasticsearch_config']['es_repository_name']
     index_list = config['elasticsearch_config']['index_names'].split(',')
@@ -95,8 +95,10 @@ def restore_indices_from_s3_to_dest(config):
 
     try:
         # specify all 3 dest ES nodes in the connection string
-        dest_es = Elasticsearch([dest_seed1, dest_seed2, dest_seed3], sniff_on_start=True, 
-            sniff_on_connection_fail=True, sniffer_timeout=60)
+        dest_es = Elasticsearch([dest_seed1, dest_seed2, dest_seed3],
+            http_auth=(config['elastic_cloud']['shield_auth_username'], config['elastic_cloud']['shield_auth_password']))
+
+        print dest_es.info()
 
         dest_es.snapshot.create_repository(repository=es_s3_repo,
             body={
@@ -125,9 +127,9 @@ def restore_indices_from_s3_to_dest(config):
 
         print "\n[INFO] Restoring ES indices: '%s' from S3 snapshot...\n" %(config['elasticsearch_config']['index_names'])
 
-        dest_es.snapshot.restore(repository=es_s3_repo, 
-            snapshot=config['elasticsearch_config']['snapshot_name'], 
-            body={"indices": config['elasticsearch_config']['index_names']}, 
+        dest_es.snapshot.restore(repository=es_s3_repo,
+            snapshot=config['elasticsearch_config']['snapshot_name'],
+            body={"indices": config['elasticsearch_config']['index_names']},
             wait_for_completion=False)
 
     except Exception, e:
@@ -140,20 +142,20 @@ def restore_indices_from_s3_to_dest(config):
 
 def reopen_indices(es, index_list):
     """
-    Re-open indices 
+    Re-open indices
     (used to ensure indices are re-opened after any restore operation)
-    
+
     Parameters:
         es         : ElasticSearch connection object
         index_list : List of ElasticSearch indices that needs to be open
-    """        
+    """
 
     try:
         for index in index_list:
-            print "[INFO] reopen_indices(): Opening index: '%s'" %(index) 
+            print "[INFO] reopen_indices(): Opening index: '%s'" %(index)
             es.indices.open(index=index, ignore_unavailable=True)
     except NotFoundError:
-                print "\n\n[WARN] Could not reopen missing index on Target ES cluster: '%s'" %(index)    
+                print "\n\n[WARN] Could not reopen missing index on Target ES cluster: '%s'" %(index)
     except Exception, e:
         print "\n\n[ERROR] Unexpected error in reopen_indices(): %s" %(str(e))
 
@@ -161,9 +163,8 @@ def reopen_indices(es, index_list):
 
 def read_config():
     """
-    Parse the config file. Return a dictionary object containing the config. 
+    Parse the config file. Return a dictionary object containing the config.
     """
-    
     cfg = ConfigParser.ConfigParser()
     cfg.read(CONFIG_FILE)
 
@@ -180,9 +181,9 @@ def main():
         description='Push specified Elasticsearch indices from SOURCE to DESTINATION as per config in the `es-s3-snapshot.conf` file.')
 
     requiredNamed = parser.add_argument_group('required named arguments')
-    requiredNamed.add_argument('-m', '--mode', 
+    requiredNamed.add_argument('-m', '--mode',
         help="Mode of operation. Choose 'backup' on your SOURCE cluster. \
-            Choose 'restore' on your DESTINATION cluster", 
+            Choose 'restore' on your DESTINATION cluster",
         choices=['backup','restore'], required=True)
 
     args = parser.parse_args()
@@ -195,10 +196,10 @@ def main():
         snapshot_name = 'snapshot-' + strftime("%Y_%m_%dT%H-%M-%S")
         config['elasticsearch_config']['snapshot_name'] = snapshot_name
 
-    if args.mode == 'backup': 
+    if args.mode == 'backup':
         snapshot_indices_from_src_to_s3(config)
 
-    if args.mode == 'restore': 
+    if args.mode == 'restore':
         restore_indices_from_s3_to_dest(config)
 
     print '\n\n[All done!]'
