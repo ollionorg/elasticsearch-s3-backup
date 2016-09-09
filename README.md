@@ -1,5 +1,15 @@
 # S3-Based Backup/Restore for Elasticsearch
 
+## Updates: 9-Sep-2016
+### support for AWS managed Elasticsearch service
+- check out the `aws-ES-service` branch
+- sign all ES HTTP requests with an appropriate IAM Role via [AWS4Auth](https://pypi.python.org/pypi/requests-aws4auth)... based on the [standard way to do this](https://elasticsearch-py.readthedocs.io/en/master/#running-on-aws-with-iam) in the Python-Elasticsearch Client
+
+### support for Elastic.co Cloud's managed Elasticsearch service
+- check out the `elastic.co` branch
+- pass [Shield](https://www.elastic.co/products/shield) auth credentials via http basic auth
+
+## Summary
 The `es-s3-snapshot` utility can be used to backup and restore Elasticsearch (ES) indices from any ES node/cluster to another ES node/cluster.
 
 Backups are stored as [ES snapshots](https://www.elastic.co/guide/en/elasticsearch/reference/current/modules-snapshots.html) in an [Amazon AWS S3](https://aws.amazon.com/s3/) bucket.
