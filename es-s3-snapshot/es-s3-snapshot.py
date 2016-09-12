@@ -43,6 +43,8 @@ def snapshot_indices_from_src_to_s3(config):
         src_es = Elasticsearch([src_seed1, src_seed2, src_seed3], sniff_on_start=True, 
             sniff_on_connection_fail=True, sniffer_timeout=60)
 
+        print "\n[INFO] Connected to src ES cluster: %s" %(src_es.info())
+
         src_es.snapshot.create_repository(repository=es_s3_repo,
             body={
                 "type": "s3",
@@ -111,6 +113,8 @@ def restore_indices_from_s3_to_dest(config):
             },
             request_timeout=30,
             verify=False)
+
+        print "\n[INFO] Connected to dest ES cluster: %s" %(dest_es.info())
 
         # must close indices before restoring:
         for index in index_list:
