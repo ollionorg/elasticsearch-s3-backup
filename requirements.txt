@@ -1,3 +1,7 @@
-elasticsearch
+elasticsearch==2.3.0
 requests-aws4auth
 boto
+
+# for Python3, use `configparser` instead of `ConfigParser`
+configparser
+six
