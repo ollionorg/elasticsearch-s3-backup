@@ -1,6 +1,8 @@
-# Elasticsearch
-#
 #For Elasticsearch 2.0 and later, use the major version 2 (2.x.y) of the library.
 #For Elasticsearch 1.0 and later, use the major version 1 (1.x.y) of the library.
 #For Elasticsearch 0.90.x, use a version from 0.4.x releases of the library.
-#elasticsearch=2.3.0
+elasticsearch==2.3.0
+
+# for Python3, use `configparser` instead of `ConfigParser`
+configparser
+six
