@@ -23,7 +23,7 @@ All snapshots are kept in a pre-specified S3 bucket. The `es-s3-snapshot` utilit
 
 ## Prerequisites and Setup
 
-The utility depends on `Python 2.7` and the standard [Elasticsearch Python client library](https://Elasticsearch-py.readthedocs.org/en/master/).
+The utility depends on `Python 3.5` and the standard [Elasticsearch Python client library](https://Elasticsearch-py.readthedocs.org/en/master/).
 
 It also requires the Elasticsearch [AWS Cloud Plugin](https://www.elastic.co/guide/en/elasticsearch/plugins/current/cloud-aws.html) to be installed on **every node of both source and target ES clusters**, otherwise you will [see errors like this](https://discuss.elastic.co/t/unknown-repository-type-s3-when-creating-snapshot-in-2-x/35697/7).
 
@@ -44,23 +44,23 @@ sudo bin/plugin install cloud-aws
 
 For more details, see the [AWS Cloud Plugin](https://www.elastic.co/guide/en/elasticsearch/plugins/current/cloud-aws.html) instructions.
 
-### Install Python 2.7 and pip
+### Install Python 3.5 and pip
 
-Both Python2.7 and `pip` (the Python package manager) are required to install the Elasticsearch Python client library which is needed to run the `es-s3-snapshot` utility.
+Both Python3.5 and `pip` (the Python package manager) are required to install the Elasticsearch Python client library which is needed to run the `es-s3-snapshot` utility.
 
 These dependencies have to be installed on one node in your source ES cluster and one node in your destination ES cluster.
 
 On RPM-based Linux distributions such as CentOS/RHEL/Amazon Linux, use `yum`, for example:
 
 ``` sh
-yum install Python27 Python27-pip
+yum install Python35 Python35-pip
 ```
 
 On Debian-based Linux distributions such as Ubuntu, use `aptitude`, for example:
 
 ```sh
 apt-get update
-apt-get install python2.7 python-pip
+apt-get install python3.5 python-pip
 ```
 
 ### Install the Python Elasticsearch Client Library
@@ -68,6 +68,7 @@ apt-get install python2.7 python-pip
 Python's standard [Elasticsearch client library](https://elasticsearch-py.readthedocs.org/en/master/) enforces the following requirements between the version of the actual Elasticsearch Service running on a given host and the version of the Elasticsearch Python library.
 
 The Python ES library is compatible with all Elasticsearch versions since `0.90.x` but you have to use a matching major version:
+* For Elasticsearch `5.0` and later, use the major version `5 (2.x.y)` of the library.
 * For Elasticsearch `2.0` and later, use the major version `2 (2.x.y)` of the library.
 * For Elasticsearch `1.0` and later, use the major version `1 (1.x.y)` of the library.
 * For Elasticsearch `0.90.x`, use a version from `0.4.x` releases of the library.
@@ -85,6 +86,12 @@ If you are using Elasticsearch 2.x on your node/cluster:
 
 ```sh
 pip install 'Elasticsearch>=2.0.0,<3.0.0'
+```
+
+Likewise if you are using Elasticsearch 5.x on your node/cluster:
+
+```sh
+pip install 'Elasticsearch>=5.0.0,<6.0.0'
 ```
 
 This has to be done on one node in your source ES cluster and one node in your destination ES cluster.
