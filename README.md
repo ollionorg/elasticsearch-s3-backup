@@ -49,7 +49,7 @@ The `AWS Cloud Plugin` for Elasticsearch needs to be installed on every node of 
 You can install it via the ES plugin manager:
 
 ```sh
-sudo bin/plugin install cloud-aws
+sudo bin/elasticsearch-plugin install repository-s3
 ```
 
 For more details, see the [AWS Cloud Plugin](https://www.elastic.co/guide/en/elasticsearch/plugins/current/cloud-aws.html) instructions.
